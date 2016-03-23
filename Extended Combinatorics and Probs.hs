@@ -1,81 +1,77 @@
 {-# OPTIONS_GHC -fdefer-type-errors #-}
 -- Mychael Walker
+
+-- More combinatorics, and some basic probability.
+-- This lab includes the "extended" combinatorics and probability library.
 --
--- CSci 60, Lab 2
--- Combinatorics: In this lab, we are Integererested in finding *computational*
--- solutions to the kind of problems we looked at in class. So in addition to
--- working out mathematically how many possibilities there are, we'll be writing
--- code to *generate* all the possibilities, so that we can then count them
--- (using `length`) and check our work. In some cases, the possibilities may
--- be too difficult to count mathematically, in which case an algorithmic
--- solution will have to suffice.
---
-import Data.List (sort, sortBy, (\\))
+import Data.List
+import Debug.Trace
 import Data.Ord (comparing)
--- trace and traceShow are available for you to use in debugging.
-import Debug.Trace (trace, traceShow)
-import System.Random
---------------------------------------------------------------------------------
--- Problems
--- Note that for questions that ask "how many" possibilities there are, you
--- should write an *expression* (e.g., `length d6`) and not the actual value.
--- You should, of course, try to check the value Haskell gives you against
--- the value the math says you should get. (But note that you should *not*
--- use the functions `fact`, `pm`, or `cm` here; those are for checking your
--- work, but the idea here is to actually *find* all the possible outcomes,
--- and then use the length to count them.)
-
--- How many ways are there to roll 4d6, if order is significant?
-four_d6 = length (4`d`6)
-
--- How many distinct ways are there to roll 4d6, if order is not significant?
-unorder_four_d6 = length (distinct (map sort (4`d`6)))
-
--- How many ways are there to roll 4d10, if we sum the rolls?
-sum_four_d10 = length (map sum(4`d`10))
-
--- How many distinct ways are there to roll 4d10, summed?
-sum_four_d10' = length (distinct (map sum(4`d`10)))
-
--- How many 5-card hands can be drawn from a standard 52-card deck, if
--- order is significant?
-five_card_hands = length (perms deck 5)
-
--- How many ways are there to rearrange the letters in the word POTATO,
--- not including indistinguishable rearrangements?
-anagrams_potato = length (distinct (perms "POTATO" 6))
-
--- How many ways are there to roll 2d10 such that the first roll is less than
--- the second?
-lt_2d10 = length [(x,y) | x <- d10, y <- d10, x>y]
-
--- Suppose we roll k `d` n. Of these, how many rolls will be sorted? You can
--- test for sorted-ness by writing a predicate that checks to see whether the
--- `sort` of a list is == to the original list.
-sorted_rolls k n = length [ x | x <- k`d`n, isSorted x == True]
-
-isSorted :: (Ord a) => [a] -> Bool
-isSorted []       = True
-isSorted [x]      = True
-isSorted (x:y:xs) = x <= y && isSorted (y:xs)
-
--- How many ways are there to roll 2d10 such that the first roll evenly
--- divides the second? By "a evenly divides b" we mean b `rem` a == 0.
--- (I'm not sure if there's a nice mathematical way to count these; let me know
--- if you find one!)
-divides_2d10 = length [(x,y) | x <- d10, y <- d10, y`rem` x ==0]
-
--- Here's a die labeled with the sizes of the three smaller dice:
-meta_die = [4,6,8]
-
--- Suppose we roll this die (= n) and a d6 (= k). We then roll k `d` n.
--- How many outcomes are possible?
-meta_meta_rolls = (fact (length [ x`d`y | x <- d4, y <- d10 ])) * (fact (length [ x`d`y | x <- d6, y <- d10 ])) * (fact (length [ x`d`y | x <- d8, y <- d10 ]))
--- As an optional exercise: try defining meta_die to include all the sizes of
--- dice. Can you get an answer before your computer explodes?
 
 --------------------------------------------------------------------------------
--- Combinatorics "library"
+-- Lab problems
+
+-- Combinatorics problems
+
+-- Rolling 4d10, what is the number of rolls in which at least one 6 appears?
+four_d10_has_6 = count True [a == 6 || b == 6 || c == 6 || d == 6 | a <- d10, b <- d10, c <- d10, d <- d10]
+
+
+-- How many unique permutations are there of the letters in the word
+-- "BANANA"?
+perms_banana = length (distinct (perms "banana" 6 ))
+
+-- Consider all the *odd* numbers between 1 and 1000. How many are *not*
+-- divisible by 3, 7, 11, or 13?
+not_div_by_371113 = length [ x | x <- filter odd [1..1000], x `rem` 3 /= 0 && x `rem` 7 /= 0 && x `rem` 11 /= 0 && x `rem` 13 /= 0]
+
+-- How many derangements are there of the word "TEACHING"?
+teaching_derangements = length (derangements "TEACHING")
+
+
+--------------------------- Probability problems ------------------------------
+
+-- What is the probibility, when rolling 3d12, that the three values will be
+-- in strictly descending order (e.g., 3,2,1 but not 3,3,2 or 1,2,3)
+
+--descending_3d12 = count True [(a>b) && (b>c) | a<-d12, b<-d12, c<-d12]
+
+descending_3d12 = prob (==True) [ a>b && b>c | a<-d12, b<-d12, c<-d12]
+
+-- Assume that we *only* roll descending 3d12 (i.e., non-descending rolls are
+-- ignored). 1) What is the probability that a random roll will contain a
+-- 12? 2) What about all 3d12 rolls, not just the descending ones: what is
+-- the probability of a roll containing a 12? Are these probabilities different?
+desc_3d12_has_12 = prob (12 `elem`) [ a | a <- d 3 12, a!!0 > a!!1, a!!1 > a!!2]
+
+
+norm_3d12_has_12 = prob (==True) [(a == 12 || b == 12 || c == 12) | a<-d12, b<-d12, c<-d12]
+
+-- Consider the unique permutations of "BANANA". What is the probability that
+-- a random permutation will start and end with an "A"? (Note that the function
+-- `head l` will give you the first element of l, while `last l` will give you
+-- the last.) You will want to write the helper function `startsEndsWithA`
+-- which returns True for this condition:
+startsEndsWithA :: String -> Bool
+startsEndsWithA s = (head s) == 'A' && (last s) == 'A'
+banana_as = prob (startsEndsWithA) (distinct (perms "BANANA" 6))
+
+-- This function returns True if `as` is a derangement of `bs`, assuming they
+-- both have the same items to start with.
+is_derangement as bs = and $ zipWith (/=) as bs
+-- Consider all the permutations of [1..10]. What is the probability that a
+-- random permutation will be a derangement?
+perm_is_derange = prob (is_derangement [1..10]) (perms [1..10] 10)
+
+-- Consider all the derangements of the word "TEACHING". What is the probability
+-- that a random derangement will have "CH" as a substring?
+-- (You can use `isInfixOf` to test whether "CH" is a substring.)
+teaching_drgs_ch = prob ("CH" `isInfixOf`) (derangements "TEACHING")
+
+
+
+--------------------------------------------------------------------------------
+-- Combinatorics and probability "library"
 --
 -- These are the combinatorics functions available for you to use. You can also
 -- use any of the functions in the Prelude that you need, as well as `sort`,
@@ -83,21 +79,36 @@ meta_meta_rolls = (fact (length [ x`d`y | x <- d4, y <- d10 ])) * (fact (length 
 -- `filter` useful.
 --
 -- Here's a quick reference to the definitions in this section:
+--
+--  Combinatoric functions:
 --   distinct l              Sorts and removes duplicates from list l
 --   k `d` n                 Rolls k n-sided dice
 --   d4,d6,d8,d10,d12,d20    Gives the outcomes of a given die
 --   Card                    Type for playing cards
 --   deck                    52-element list of all cards (incl. jokers)
 --   perms l k               Generates all k-sized permutations of l
+--   derangements l          Generates all derangements of l
 --   combine k l             Generalized (not just dice) version of `d`
 --   countWith p l           Count outcomes in l that satisfy predicate p
 --   count e l               Count outcomes that == e in l
 --   countDistinct l         Pair each distinct element of l with its count
 --   sortCounts ls           Sort the output of countDistinct on counts
+--
+--  Predicate combinators:
 --   p1 .&& p2               Predicate that is True if BOTH p1 and p2 are
 --   p1 .|| p2               Predicate that is True if EITHER p1 or p2 is
 --   p1 .>< p2               Predicate that is True if ONE of p1 or p2 is
 --   (not . p)               Predicate that is True if p1 is False, and vice versa
+--
+--  Probability functions:
+--   prob f l                Calculates the probability of event f occuring in
+--                           the list of outcomes l
+--   when e f l              Calculates the conditional probability of f
+--                           occuring in l, *assuming* that e has occured
+--   average l               Given a list of numeric outcomes, calculates the
+--                           average outcome.
+--
+--  Numeric functions:
 --   fact n                  Gives the factorial of n
 --   pm n k                  Gives the number of permutations of n, size k
 --   cm n k                  Gives the number of combinations of n, size k
@@ -108,11 +119,11 @@ meta_meta_rolls = (fact (length [ x`d`y | x <- d4, y <- d10 ])) * (fact (length 
 -- k `d` n
 -- Roll k n-sided dice and collect all possible outcomes. This is the `d`
 -- function that we defined in class.
-d :: Integer -> Integer -> [[Integer]]
+d :: Int -> Int -> [[Int]]
 0 `d` _  = [[]]
 k `d` n  = concat [ map (i:) kdn' | i <- [1..n] ]
     where
-        kdn' :: [[Integer]]
+        kdn' :: [[Int]]
         kdn' = (k - 1) `d` n
 
 -- Predefined dice, built using `d`
@@ -130,12 +141,16 @@ data Suit = Spades | Diamonds | Clubs | Hearts
     deriving (Show, Eq, Ord)
 
 data Card
-    = Face Suit Integer
+    = RedJoker
+    | BlackJoker
+    | Face Suit Int
     deriving (Eq)
 
--- We make Card an instance of Show, so that cards can be prIntegered nicely.
+-- We make Card an instance of Show, so that cards can be printed nicely.
 -- E.g., `Face Spades 4` will show up as "4 of Spades".
 instance Show Card where
+    show RedJoker = "Red Joker"
+    show BlackJoker = "Black Joker"
     show (Face s 1) = "Ace of " ++ (show s)
     show (Face s n) | n <= 10   = (show n) ++ " of " ++ (show s)
                     | n == 11  = "Jack of " ++ (show s)
@@ -146,16 +161,20 @@ instance Show Card where
 -- of Cards.
 instance Ord Card where
   a          <= a'           | a == a' = True
+  RedJoker   <= _                      = True
+  BlackJoker <= (Face _ _)             = True
   (Face s n) <= (Face s' n') | s < s'  = True
                              | s == s' = n <= n'
   _          <= _                      = False
 
+
 -- A full deck
 deck :: [Card]
-deck = [Face Hearts i | i <- [1..13]] ++
-       [Face Clubs i | i <- [1..13]] ++
-       [Face Diamonds i | i <- [13,12..1]] ++
-       [Face Spades i | i <- [13,12..1]]
+deck = [RedJoker, BlackJoker] ++
+       [Face Hearts i | i <- [1..12]] ++
+       [Face Clubs i | i <- [1..12]] ++
+       [Face Diamonds i | i <- [12,11..1]] ++
+       [Face Spades i | i <- [12,11..1]]
 
 ------------------------------------
 -- Combinatoric functions
@@ -176,11 +195,17 @@ distinct = dedup . sort
 
 -- perms l k
 -- Generates all k-sized permutations of l.
-perms :: Eq a => [a] -> Integer -> [[a]]
+perms :: Eq a => [a] -> Int -> [[a]]
 perms _ 0 = [[]]
 perms l r = [i:p | p <- pm', i <- l \\ p]
     where
         pm' = perms l (r-1)
+
+-- derangements l
+-- Gives all the derangemenets of the list l. Note that for speed we are
+-- using the built-in `permutations` function.
+derangements :: Eq a => [a] -> [[a]]
+derangements l = filter (and . zipWith (/=) l) $ permutations l
 
 -- combine k l
 -- combine is the generalized version of `d`, that can work not just with
@@ -189,7 +214,7 @@ perms l r = [i:p | p <- pm', i <- l \\ p]
 -- gives the same output as
 --   4 `d` 6
 -- But you can use any list in place of `d6`.
-combine :: Integer -> [a] -> [[a]]
+combine :: Int -> [a] -> [[a]]
 combine 0 _ = [[]]
 combine k l = concat [ map (i:) kcn' | i <- l ]
     where
@@ -199,14 +224,14 @@ combine k l = concat [ map (i:) kcn' | i <- l ]
 -- Count the number of elements of l that satisfy the predicate p. For example,
 --   countWith odd d20
 --   ===> 10
-countWith :: (a -> Bool) -> [a] -> Integer
+countWith :: (a -> Bool) -> [a] -> Int
 countWith f l = length $ filter f l
 
 -- count e l
 -- Count the number of times e is present in l. E.g.,
 --   count 10 $ map sum $ 4 `d` 6
 -- will count the number of ways to get a 10, if we roll 4d6 and sum the dice.
-count :: Eq a => a -> [a] -> Integer
+count :: Eq a => a -> [a] -> Int
 count e = countWith (==e)
 
 -- countDistinct l
@@ -215,7 +240,7 @@ count e = countWith (==e)
 -- the original list. E.g.,
 --   countDistinct [1,1,1,2,2,3]
 --   ===> [(3,1),(2,2),(1,3)]
-countDistinct :: Ord a => [a] -> [(Integer,a)]
+countDistinct :: Ord a => [a] -> [(Int,a)]
 countDistinct l = [(count e l,e) | e <- distinct l]
 
 -- sortCounts l
@@ -247,7 +272,7 @@ sortCounts = sortBy (comparing fst)
 
 -- Either
 (.||) :: (a -> Bool) -> (a -> Bool) -> (a -> Bool)
-(.||) f1 f2 x = (f1 x) && (f2 x)
+(.||) f1 f2 x = (f1 x) || (f2 x)
 
 -- Either, but not both
 (.><) :: (a -> Bool) -> (a -> Bool) -> (a -> Bool)
@@ -255,6 +280,29 @@ sortCounts = sortBy (comparing fst)
     where
         e1 = f1 x
         e2 = f2 x
+
+--------------------------------------------------------------------------------
+-- Probability functions
+
+-- prob
+-- prob will tell us the probability of event f occuring in the set of outcomes
+-- l. For example, we could do
+--
+--   prob odd $ map sum $ 4 `d` 6
+--
+-- I.e., what is the probability of rolling an odd total, when we roll 4d6?
+prob :: Eq a => (a -> Bool) -> [a] -> Float
+prob f l = (fromIntegral $ countWith f l) / (fromIntegral $ length l)
+
+-- when e f l
+-- Conditional probability: what is the probability of f *given* e, in l?
+when :: Eq a => (a -> Bool) -> (a -> Bool) -> [a] -> Float
+when e f l = prob f $ filter e l
+
+-- Average outcome (for numeric outcomes). This is just the average of the
+-- outcomes.
+average :: Fractional a => [a] -> a
+average l = (sum l) / (fromIntegral $ length l)
 
 --------------------------------------------------------------------------------
 -- Counting functions
@@ -265,8 +313,8 @@ fact :: Integer -> Integer
 fact 0 = 1
 fact n = product [1..n]
 
--- It's OK to use Integer div-ision here, because we know that the result will
--- always be an Integer.
+-- It's OK to use integer div-ision here, because we know that the result will
+-- always be an integer.
 pm :: Integer -> Integer -> Integer
 pm n k = (fact n) `div` (fact (n-k))
 
